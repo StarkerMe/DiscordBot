@@ -2872,7 +2872,7 @@ function sendInm(channelId, text) {
     });
 }
 
-////////////////Discord処理////////////////
+////////////////DiscordLogin////////////////
 if (TOKEN == undefined) {
   console.log("!!!!!!!PLEASE SET ENV: DISCORD_BOT_TOKEN!!!!!!!");
   logger.fatal("!!!!!!!PLEASE SET ENV: DISCORD_BOT_TOKEN!!!!!!!");
