@@ -49,7 +49,7 @@ log4js.configure({
   },
 });
 
-////////////////サーバー起動////////////////
+////////////////CreateServer////////////////
 http
   .createServer(function (req, res) {
     res.writeHead(200, { "Content-Type": "text/plain" });
