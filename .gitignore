@@ -1,0 +1,6 @@
+.env
+db/
+logs/
+lib/
+node_modules/
+Bserver.js
