@@ -135,9 +135,9 @@ client.on("ready", () => {
           "task_" +
             docs[step]._id +
             " = cron.schedule('" +
-            docs[step].target +
+            docs[step].date +
             "', () => { sendMsgSCD('SCHEDULED TASK', '" +
-            docs[step].ch +
+            docs[step].target +
             "', '" +
             docs[step].text +
             "', '" +
@@ -145,7 +145,7 @@ client.on("ready", () => {
             "');},{scheduled: false});"
         );
         eval("task_" + docs[step]._id + ".start();");
-        const dateargs = docs[step].target.split(" ");
+        const dateargs = docs[step].date.split(" ");
         for (var i = 0; i < 6; i++) {
           if (dateargs[i] == "*") {
             dateargs.splice(i, 1, "毎");
@@ -154,9 +154,9 @@ client.on("ready", () => {
         sendMsgSAVE(
           "Scheduled",
           MsgLogChannelId,
-          client.channels.cache.get(docs[step].ch).guild.name +
+          client.channels.cache.get(docs[step].target).guild.name +
             " : " +
-            client.channels.cache.get(docs[step].ch).name +
+            client.channels.cache.get(docs[step].target).name +
             "\n『 " +
             docs[step].text +
             " 』\n" +
@@ -714,9 +714,9 @@ client.on("message", async (message) => {
     const doc = {
       key: key,
       type: type,
-      ch: ch,
+      target: ch,
       text: msg,
-      target: date,
+      date: date,
       img: img,
     };
 
@@ -732,11 +732,11 @@ client.on("message", async (message) => {
         "Type:" +
         newDoc.type +
         " ch:" +
-        newDoc.ch +
+        newDoc.target +
         " msg:" +
         newDoc.text +
         " date:" +
-        newDoc.target +
+        newDoc.date +
         " img:" +
         newDoc.img +
         " Id:" +
@@ -758,9 +758,9 @@ client.on("message", async (message) => {
         "task_" +
           newDoc._id +
           " = cron.schedule('" +
-          newDoc.target +
+          newDoc.date +
           "', () => { sendMsgSCD('SCHEDULED TASK', '" +
-          newDoc.ch +
+          newDoc.target +
           "', '" +
           newDoc.text +
           "', '" +
@@ -772,9 +772,9 @@ client.on("message", async (message) => {
       sendMsgSAVE(
         "Scheduled",
         message.channel.id,
-        client.channels.cache.get(newDoc.ch).guild.name +
+        client.channels.cache.get(newDoc.target).guild.name +
           " : " +
-          client.channels.cache.get(newDoc.ch).name +
+          client.channels.cache.get(newDoc.target).name +
           "\n『 " +
           newDoc.text +
           " 』\n" +
@@ -2806,7 +2806,7 @@ function sendMsgSCD(
     );
   }
   const CH = client.channels.cache.get(channelId);
-  CH.send("🏳 -INFORMATION-", {
+  CH.send("🏳 " + text, {
     files: [attachment],
     embed: {
       description: "`❰" + flag + "❱`\n" + text,
