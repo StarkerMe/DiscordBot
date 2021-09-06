@@ -1,6 +1,9 @@
+db/*
+!.gitkeep
+logs/*
+!.gitkeep
+lib/*
+!.gitkeep
+node_modules
 .env
-db/
-logs/
-lib/
-node_modules/
 Bserver.js
