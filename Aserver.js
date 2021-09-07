@@ -2759,8 +2759,8 @@ function sendMsgIMAGE(
   text = "",
   imagedir = image_dir + "noimage.png"
 ) {
-  if (imagename.match(/http/)) {
-    var attachment = new discord.MessageAttachment(imagename, "image.jpg");
+  if (imagedir.match(/http/)) {
+    var attachment = new discord.MessageAttachment(imagedir, "image.jpg");
   } else {
     var attachment = new discord.MessageAttachment(imagedir, "image.jpg");
   }
