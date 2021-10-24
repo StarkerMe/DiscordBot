@@ -10,6 +10,7 @@ const fetch = require("node-fetch");
 const ytdl = require("ytdl-core");
 const cron = require("node-cron");
 const http = require("http");
+const path = require("path");
 const yts = require("yt-search");
 const fs = require("fs");
 const os = require("os");
@@ -21,7 +22,9 @@ eval("var PORTN = process.env." + ServerNo + "PORTN;");
 const VOnylChannelName = process.env.VOCN;
 const GenLogChannelId = process.env.GENLOG;
 const MsgLogChannelId = process.env.MSGLOG;
+const rootChannelId = process.env.SUPERUSER;
 const DSKLChannelId = process.env.DSKL;
+const BSVLChannelId = process.env.BSVL;
 
 ////////////////Directory////////////////
 const db_dir = "./db/";
@@ -72,7 +75,7 @@ const db_scd = new Database({
   autoload: true,
 });
 
-client.on("debug", console.debug);
+//client.on("debug", console.debug);
 
 client.on("ready", () => {
   client.channels.cache
@@ -1617,7 +1620,7 @@ client.on("message", async (message) => {
     var infohideorshow = "show";
     var vchannel = message.member.voice.channel;
     if (message.content.startsWith("/play-d")) {
-      vchannel = DSKLChannelId;
+      vchannel = client.channels.cache.get(DSKLChannelId);
     }
     if (message.content.startsWith("/play-h")) {
       infohideorshow = "hide";
@@ -1630,7 +1633,7 @@ client.on("message", async (message) => {
     } else {
       return sendMsg(
         message.channel.id,
-        "/play:https://www.youtube.com/example or 検索文\n/play-h:https://www.youtube.com/example or 検索文\n/play-d:https://www.youtube.com/example or 検索文"
+        "/play:https://www.youtube.com/example or 検索文\n/play-h:サムネイル非表示で再生\n/play-d:同窓会へ遠隔再生"
       );
     }
     const args = message.content.split(splitSpace);
@@ -1999,8 +2002,7 @@ client.on("message", async (message) => {
         sendMsgSAVE(
           "/help AV",
           message.channel.id,
-          "【ボイス一覧】\n※先頭に「/」を付けてDMや別鯖で送るとロビーで再生されます\n\n" +
-            targets.join("\n")
+          "【ボイス一覧】\n\n" + targets.join("\n")
         );
       });
     setTimeout(function () {
@@ -2035,16 +2037,19 @@ client.on("message", async (message) => {
         logERR(error.name, error.message);
         sendErr(error.name, message.channel.id, error.message);
       }
-      ////////////////ボイス////////////////
       if (docs) {
         through = "no";
-        const vchannel = message.member.voice.channel;
+        var vchannel = message.member.voice.channel;
+        //SuperUserChannel => DSKL
+        if (message.channel.id == rootChannelId) {
+          vchannel = client.channels.cache.get(DSKLChannelId);
+        }
         if (!vchannel)
           return message.reply("このコマンドはVC参加中しか使えません");
         const connection = await vchannel.join();
         const dispatcher = connection.play(voice_dir + docs.target + ".mp3");
         dispatcher.on("start", () => {
-          dispatcher.setVolume(0.5);
+          dispatcher.setVolume(0.8);
           message.delete();
           logWARN(
             "[PLAY MP3]",
@@ -2408,7 +2413,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
                       voice_dir + docs[step].target + ".mp3"
                     );
                     dispatcher.on("start", () => {
-                      dispatcher.setVolume(0.5);
+                      dispatcher.setVolume(0.8);
                       logWARN(
                         "[PLAY MP3]",
                         newState.member.voice.channel.guild.name,
@@ -2430,7 +2435,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
                 const connection = await newState.member.voice.channel.join();
                 const dispatcher = connection.play(voice_dir + "nodata.mp3");
                 dispatcher.on("start", () => {
-                  dispatcher.setVolume(0.5);
+                  dispatcher.setVolume(0.8);
                   logWARN(
                     "[PLAY MP3]",
                     newState.member.voice.channel.guild.name,
@@ -2760,9 +2765,11 @@ function sendMsgIMAGE(
   imagedir = image_dir + "noimage.png"
 ) {
   if (imagedir.match(/http/)) {
-    var attachment = new discord.MessageAttachment(imagedir, "image.jpg");
+    var ext = path.extname(imagedir);
+    var attachment = new discord.MessageAttachment(imagedir, "image" + ext);
   } else {
-    var attachment = new discord.MessageAttachment(imagedir, "image.jpg");
+    var ext = path.extname(imagedir);
+    var attachment = new discord.MessageAttachment(imagedir, "image" + ext);
   }
   const CH = client.channels.cache.get(channelId);
   CH.send("🏴 -INFORMATION-", {
@@ -2770,7 +2777,7 @@ function sendMsgIMAGE(
     embed: {
       description: "`❰" + flag + "❱`\n" + text,
       image: {
-        url: "attachment://image.jpg",
+        url: "attachment://image" + ext,
       },
       color: "#2f3136",
     },
@@ -2798,11 +2805,13 @@ function sendMsgSCD(
   imagename = "noimage.png"
 ) {
   if (imagename.match(/http/)) {
-    var attachment = new discord.MessageAttachment(imagename, "image.jpg");
+    var ext = path.extname(imagename);
+    var attachment = new discord.MessageAttachment(imagename, "image" + ext);
   } else {
+    var ext = path.extname(imagename);
     var attachment = new discord.MessageAttachment(
       image_dir + imagename,
-      "image.jpg"
+      "image" + ext
     );
   }
   const CH = client.channels.cache.get(channelId);
@@ -2811,7 +2820,7 @@ function sendMsgSCD(
     embed: {
       description: "`❰" + flag + "❱`\n" + text,
       image: {
-        url: "attachment://image.jpg",
+        url: "attachment://image" + ext,
       },
       color: "#2f3136",
     },
