@@ -61,7 +61,10 @@ http
   .listen(PORTN);
 
 ////////////////Database////////////////
-const db_int = new Database({ filename: db_dir + "Z_int.db", autoload: true });
+const db_int = new Database({
+  filename: db_dir + ServerNo + "int.db",
+  autoload: true,
+});
 const db_grk = new Database({
   filename: db_dir + ServerNo + "grk.db",
   autoload: true,
@@ -183,6 +186,65 @@ client.on("ready", () => {
       }
     });
   });
+  /*
+  ////////////////更新情報（スケジュール）////////////////
+  db_scd.count({ type: "更新" }, (error, count) => {
+    if (error !== null) {
+      logger.error(error);
+      logERR(error.name, error.message);
+    }
+    db_scd.find({ type: "更新" }).exec((e, docs) => {
+      for (let step = 0; step < count; step++) {
+        eval(
+          "task_" +
+            docs[step]._id +
+            " = cron.schedule('" +
+            docs[step].date +
+            "', () => { sendMsgSCDDD('SCHEDULED TASK', '" +
+            docs[step].text +
+            "', '" +
+            docs[step].img +
+            "');},{scheduled: false});"
+        );
+        eval("task_" + docs[step]._id + ".start();");
+        const dateargs = docs[step].date.split(" ");
+        for (var i = 0; i < 6; i++) {
+          if (dateargs[i] == "*") {
+            dateargs.splice(i, 1, "毎");
+          }
+        }
+        sendMsgSAVE(
+          "Scheduled",
+          MsgLogChannelId,
+          docs[step].target +
+            " : " +
+            docs[step].target +
+            "\n『 " +
+            docs[step].text +
+            " : " +
+            docs[step].img +
+            " 』\n" +
+            dateargs[4] +
+            "月 " +
+            dateargs[3] +
+            "日 " +
+            dateargs[5] +
+            "曜日 " +
+            dateargs[2] +
+            "時 " +
+            dateargs[1] +
+            "分 " +
+            dateargs[0] +
+            "秒にスケジュールされました\n\n【データ削除：" +
+            docs[step].type +
+            "：" +
+            docs[step]._id +
+            "】で取り消すことができます"
+        );
+      }
+    });
+  });
+  */
 });
 
 ////////////////Message////////////////
@@ -488,7 +550,7 @@ client.on("message", async (message) => {
     } else {
       return sendMsg(
         message.channel.id,
-        "/update:field:text:text:field:text:text"
+        "/update:title:field:text:text:field:text:text"
       );
     }
     const file = message.attachments.first();
@@ -498,24 +560,92 @@ client.on("message", async (message) => {
         args[step] = "";
       }
     }
+
+    sendMsgSPE(message.channel.id, "🏳 -更新情報を受信しました-", {
+      embed: {
+        title: args[1],
+        thumbnail: file,
+        fields: [
+          {
+            name: args[2],
+            value: "\n" + args[3] + "\n" + args[4],
+          },
+          {
+            name: args[5],
+            value: "\n" + args[6] + "\n" + args[7],
+          },
+        ],
+        color: "#2f3136",
+        footer: { text: "〈SENDING TO ALL SERVERS〉" },
+        timestamp: new Date(),
+      },
+    });
+    sendMsg(
+      message.channel.id,
+      "上記の通り全サーバーに配信します。\n続行する場合は、管理コードを送信してください。\n Please enter the administrator password."
+    );
+    const filter = (msg) => msg.author.id === message.author.id;
+    const collected = await message.channel.awaitMessages(filter, {
+      max: 1,
+      time: 30000,
+    });
+    const response = collected.first();
+    if (!response) return sendMsg(message.channel.id, "Time out.");
+    if (response.content === process.env.PASSWORD) {
+      client.guilds.cache.map((channel) => {
+        sendMsgSPE(
+          channel.channels.guild.channels.cache.find(
+            (channel) => channel.type == "text"
+          ).id,
+          "🏳 -更新情報を受信しました-",
+          {
+            embed: {
+              title: args[1],
+              thumbnail: file,
+              fields: [
+                {
+                  name: args[2],
+                  value: "\n" + args[3] + "\n" + args[4],
+                },
+                {
+                  name: args[5],
+                  value: "\n" + args[6] + "\n" + args[7],
+                },
+              ],
+              color: "#2f3136",
+              footer: { text: "〈SENDING TO ALL SERVERS〉" },
+              timestamp: new Date(),
+            },
+          }
+        );
+      });
+      logger.warn("Send Message");
+      return;
+    } else {
+      sendMsg(
+        message.channel.id,
+        "The password you typed is incorrect. Start all over again."
+      );
+    }
+
     client.guilds.cache.map((channel) => {
       sendMsgSPE(
         channel.channels.guild.channels.cache.find(
           (channel) => channel.type == "text"
         ).id,
-        "🏳 -INFORMATION-",
+        "🏳 -更新情報を受信しました-",
         {
           embed: {
-            title: "更新情報を受信しました！",
+            title: args[1],
             thumbnail: file,
             fields: [
               {
-                name: args[1],
-                value: "\n" + args[2] + "\n" + args[3],
+                name: args[2],
+                value: "\n" + args[3] + "\n" + args[4],
               },
               {
-                name: args[4],
-                value: "\n" + args[5] + "\n" + args[6],
+                name: args[5],
+                value: "\n" + args[6] + "\n" + args[7],
               },
             ],
             color: "#2f3136",
@@ -528,6 +658,133 @@ client.on("message", async (message) => {
     logger.warn("Send Message");
     return;
   }
+
+  ////////////////更新情報（スケジュール）////////////////
+  /*
+  if (message.content.startsWith("/updatescd")) {
+    if (message.content.match("：")) {
+      var splitSpace = "：";
+    } else if (message.content.match(":")) {
+      var splitSpace = ":";
+    } else {
+      return sendMsg(
+        message.channel.id,
+        "/updatescd:title:n1:v1:v2:n2:v3:v4:秒 分 時 日 月 曜日:imageURL or localpath\n\nタスクはCronで制御されています。\n日時設定の書式については下記サイトを参考に半角空白含め６桁を設定してください。\nhttps://www.npmjs.com/package/node-cron#cron-syntax"
+      );
+    }
+    const args = message.content.split(splitSpace);
+    const key = "0";
+    const type = "更新";
+    const title = args[1];
+    const n1 = args[2];
+    const v1 = args[3];
+    const v2 = args[4];
+    const n2 = args[5];
+    const v3 = args[6];
+    const v4 = args[7];
+    const date = args[8];
+    const img = args[9];
+    var msgcon =
+      title +
+      "','" +
+      n1 +
+      "','" +
+      v1 +
+      "','" +
+      v2 +
+      "','" +
+      n2 +
+      "','" +
+      v3 +
+      "','" +
+      v4;
+    const dateargs = date.split(" ");
+    const doc = {
+      key: key,
+      type: type,
+      target: "ALL",
+      text: msgcon,
+      date: date,
+      img: img,
+    };
+
+    db_scd.insert(doc, (error, newDoc) => {
+      if (error !== null) {
+        logger.error(error);
+        logERR(error.name, error.message);
+        sendErr(error.name, message.channel.id, error.message);
+      }
+      const Content =
+        "key:" +
+        newDoc.key +
+        "Type:" +
+        newDoc.type +
+        " ch:" +
+        newDoc.target +
+        " msg:" +
+        newDoc.text +
+        " date:" +
+        newDoc.date +
+        " img:" +
+        newDoc.img +
+        " Id:" +
+        newDoc._id;
+      logWARN(
+        "[INSERTDB]",
+        message.guild.name,
+        message.channel.name,
+        message.channel.id,
+        message.member.user.username,
+        Content
+      );
+      for (var i = 0; i < 6; i++) {
+        if (dateargs[i] == "*") {
+          dateargs.splice(i, 1, "毎");
+        }
+      }
+      eval(
+        "task_" +
+          newDoc._id +
+          " = cron.schedule('" +
+          newDoc.date +
+          "', () => { sendMsgSCDDD('SCHEDULED TASK', '" +
+          newDoc.text +
+          "', '" +
+          newDoc.img +
+          "');},{scheduled: false});"
+      );
+      eval("task_" + newDoc._id + ".start();");
+
+      sendMsgSAVE(
+        "Scheduled",
+        message.channel.id,
+        client.channels.cache.get(newDoc.target).guild.name +
+          " : " +
+          client.channels.cache.get(newDoc.target).name +
+          "\n『 " +
+          newDoc.text +
+          " 』\n" +
+          dateargs[4] +
+          "月 " +
+          dateargs[3] +
+          "日 " +
+          dateargs[5] +
+          "曜日 " +
+          dateargs[2] +
+          "時 " +
+          dateargs[1] +
+          "分 " +
+          dateargs[0] +
+          "秒にスケジュールされました\n\n【データ削除：" +
+          type +
+          "：" +
+          newDoc._id +
+          "】で取り消すことができます"
+      );
+    });
+    return;
+  }
+*/
 
   ////////////////ボイス停止////////////////
   if (message.content === "/stop") {
@@ -801,6 +1058,7 @@ client.on("message", async (message) => {
     });
     return;
   }
+
   ////////////////設定データ登録////////////////
   if (message.content.startsWith("/intdb")) {
     if (message.content.match("：")) {
@@ -851,6 +1109,67 @@ client.on("message", async (message) => {
     return;
   }
 
+  ////////////////語録反応設定////////////////
+  if (message.content.startsWith("/grk")) {
+    if (message.content.match("enable")) {
+      var grkstate = "enable";
+    } else if (message.content.match("disable")) {
+      var grkstate = "disable";
+    } else {
+      return sendMsg(
+        message.channel.id,
+        "/grkenable : 語録反応を有効化\n /grkdisable : 語録反応を無効化"
+      );
+    }
+    const key = 0;
+    const name = "GRKresponse";
+    const state = grkstate;
+    const other = message.channel.id;
+    const doc = {
+      key: key,
+      name: name,
+      state: state,
+      other: other,
+    };
+    db_int.insert(doc, (error, newDoc) => {
+      if (error !== null) {
+        logger.error(error);
+        logERR(error.name, error.message);
+        sendErr(error.name, message.channel.id, error.message);
+      }
+      const Content =
+        "key:" +
+        newDoc.key +
+        " name:" +
+        newDoc.name +
+        " state:" +
+        newDoc.state +
+        " other:" +
+        newDoc.other +
+        " Id:" +
+        newDoc._id;
+      logWARN(
+        "[INSERTDB]",
+        message.guild.name,
+        message.channel.name,
+        message.channel.id,
+        message.member.user.username,
+        Content
+      );
+      sendMsg(
+        message.channel.id,
+        message.guild.name +
+          "|" +
+          message.channel.name +
+          " での語録反応を " +
+          newDoc.state +
+          " に設定しました\n/grkenable or /grkdisable で再度設定することができます"
+      );
+    });
+    return;
+  }
+
+  ////////////////ウェブフック作成////////////////
   if (message.content.startsWith("/createwh")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1858,7 +2177,7 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////ヘルプ////////////////
+  ////////////////管理者ヘルプ////////////////
   if (message.content === "/help admin") {
     sendMsgSPE(message.channel.id, "🏴 -INFORMATION-", {
       embed: {
@@ -1928,6 +2247,7 @@ client.on("message", async (message) => {
     return;
   }
 
+  ////////////////一般ヘルプ////////////////
   if (message.content === "/help") {
     sendMsgSPE(message.channel.id, "🏴 -INFORMATION-", {
       embed: {
@@ -2049,7 +2369,7 @@ client.on("message", async (message) => {
         const connection = await vchannel.join();
         const dispatcher = connection.play(voice_dir + docs.target + ".mp3");
         dispatcher.on("start", () => {
-          dispatcher.setVolume(0.8);
+          dispatcher.setVolume(0.5);
           message.delete();
           logWARN(
             "[PLAY MP3]",
@@ -2123,39 +2443,52 @@ client.on("message", async (message) => {
   });
 
   ////////////////語録判定////////////////
-  //URL＆ユーザ指定排除//
   if (message.content.match("http") || message.content.match("@!")) {
     return;
   }
-  db_grk.count({ type: "語録" }, (error, count) => {
-    if (through == "no") {
-      return;
-    }
-    db_grk
-      .find({ type: "語録" })
-      .sort({ key: 1 })
-      .exec((error, docs) => {
-        if (error !== null) {
-          logger.error(error);
-          logERR(error.name, error.message);
-          sendErr(error.name, message.channel.id, error.message);
-        }
-        for (let step = 0; step < count; step++) {
-          if (docs[step].decision == "include") {
-            if (message.content.match(docs[step].target)) {
-              sendInm(message.channel.id, docs[step].text);
-            }
-          } else if (docs[step].decision == "match") {
-            if (message.content === docs[step].target) {
-              sendInm(message.channel.id, docs[step].text);
-              break;
-            }
-          } else {
-            break;
+  db_int.findOne(
+    { name: "GRKresponse", other: message.channel.id },
+    (error, docs) => {
+      if (error !== null) {
+        logger.error(error);
+        logERR(error.name, error.message);
+        sendErr(error.name, message.channel.id, error.message);
+      }
+      if (docs.state == "disable") {
+        return;
+      } else {
+        db_grk.count({ type: "語録" }, (e, count) => {
+          if (through == "no") {
+            return;
           }
-        }
-      });
-  });
+          db_grk
+            .find({ type: "語録" })
+            .sort({ key: 1 })
+            .exec((error, docs) => {
+              if (error !== null) {
+                logger.error(error);
+                logERR(error.name, error.message);
+                sendErr(error.name, message.channel.id, error.message);
+              }
+              for (let step = 0; step < count; step++) {
+                if (docs[step].decision == "include") {
+                  if (message.content.match(docs[step].target)) {
+                    sendInm(message.channel.id, docs[step].text);
+                  }
+                } else if (docs[step].decision == "match") {
+                  if (message.content === docs[step].target) {
+                    sendInm(message.channel.id, docs[step].text);
+                    break;
+                  }
+                } else {
+                  break;
+                }
+              }
+            });
+        });
+      }
+    }
+  );
 });
 
 ////////////////ボイスチャンネル////////////////
@@ -2395,7 +2728,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
           logERR(error.name, error.message);
         }
         if (docs.state == "stoping") {
-          db_vic.count({ type: "挨拶" }, (error, count) => {
+          db_vic.count({ type: "挨拶" }, (e, count) => {
             db_vic
               .find({ type: "挨拶" })
               .sort({ key: 1 })
@@ -2413,7 +2746,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
                       voice_dir + docs[step].target + ".mp3"
                     );
                     dispatcher.on("start", () => {
-                      dispatcher.setVolume(0.8);
+                      dispatcher.setVolume(0.5);
                       logWARN(
                         "[PLAY MP3]",
                         newState.member.voice.channel.guild.name,
@@ -2435,7 +2768,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
                 const connection = await newState.member.voice.channel.join();
                 const dispatcher = connection.play(voice_dir + "nodata.mp3");
                 dispatcher.on("start", () => {
-                  dispatcher.setVolume(0.8);
+                  dispatcher.setVolume(0.5);
                   logWARN(
                     "[PLAY MP3]",
                     newState.member.voice.channel.guild.name,
@@ -2822,6 +3155,69 @@ function sendMsgSCD(
       image: {
         url: "attachment://image" + ext,
       },
+      color: "#2f3136",
+    },
+  })
+    .then(
+      logWARN(
+        "[SENDIMSG]",
+        CH.guild.name,
+        CH.name,
+        channelId,
+        client.user.username,
+        text
+      )
+    )
+    .catch((error) => {
+      logger.error(error);
+      logERR(error.name, error.message);
+      sendErr(error.name, channelId, error.message);
+    });
+}
+function sendMsgSCDDD(
+  flag = "SYSTEM",
+  title = "",
+  name1 = "",
+  value1 = "",
+  value2 = "",
+  name2 = "",
+  value3 = "",
+  value4 = "",
+  imagename = "noimage.png"
+) {
+  if (imagename.match(/http/)) {
+    var ext = path.extname(imagename);
+    var attachment = new discord.MessageAttachment(imagename, "image" + ext);
+  } else {
+    var ext = path.extname(imagename);
+    var attachment = new discord.MessageAttachment(
+      image_dir + imagename,
+      "image" + ext
+    );
+  }
+  const CH = client.guilds.cache.map((channel) => {
+    channel.channels.guild.channels.cache.find(
+      (channel) => channel.type == "text"
+    ).id;
+  });
+  CH.send("🏳 " + title, {
+    files: [attachment],
+    embed: {
+      description: "`❰" + flag + "❱`",
+      title: title,
+      thumbnail: {
+        url: "attachment://image" + ext,
+      },
+      fields: [
+        {
+          name: name1,
+          value: "\n" + value1 + "\n" + value2,
+        },
+        {
+          name: name2,
+          value: "\n" + value3 + "\n" + value4,
+        },
+      ],
       color: "#2f3136",
     },
   })
