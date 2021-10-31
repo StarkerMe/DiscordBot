@@ -1121,51 +1121,35 @@ client.on("message", async (message) => {
         "/grkenable : 語録反応を有効化\n /grkdisable : 語録反応を無効化"
       );
     }
-    const key = 0;
-    const name = "GRKresponse";
-    const state = grkstate;
-    const other = message.channel.id;
-    const doc = {
-      key: key,
-      name: name,
-      state: state,
-      other: other,
-    };
-    db_int.insert(doc, (error, newDoc) => {
-      if (error !== null) {
-        logger.error(error);
-        logERR(error.name, error.message);
-        sendErr(error.name, message.channel.id, error.message);
+
+    db_int.update(
+      { name: "GRKresponse", other: message.channel.id },
+      {
+        $set: {
+          key: 0,
+          name: "GRKresponse",
+          state: grkstate,
+          other: message.channel.id,
+        },
+      },
+      { upsert: true },
+      (error, numOfDocs) => {
+        if (error !== null) {
+          logger.error(error);
+          logERR(error.name, error.message);
+          sendErr(error.name, message.channel.id, error.message);
+        }
+        sendMsg(
+          message.channel.id,
+          message.guild.name +
+            "|" +
+            message.channel.name +
+            " での語録反応を " +
+            grkstate +
+            " に設定しました\n/grkenable or /grkdisable で再度設定することができます"
+        );
       }
-      const Content =
-        "key:" +
-        newDoc.key +
-        " name:" +
-        newDoc.name +
-        " state:" +
-        newDoc.state +
-        " other:" +
-        newDoc.other +
-        " Id:" +
-        newDoc._id;
-      logWARN(
-        "[INSERTDB]",
-        message.guild.name,
-        message.channel.name,
-        message.channel.id,
-        message.member.user.username,
-        Content
-      );
-      sendMsg(
-        message.channel.id,
-        message.guild.name +
-          "|" +
-          message.channel.name +
-          " での語録反応を " +
-          newDoc.state +
-          " に設定しました\n/grkenable or /grkdisable で再度設定することができます"
-      );
-    });
+    );
     return;
   }
 
@@ -2454,22 +2438,36 @@ client.on("message", async (message) => {
         logERR(error.name, error.message);
         sendErr(error.name, message.channel.id, error.message);
       }
-      if (docs.state == "disable") {
+      if (docs == null) {
+        const doc = {
+          key: 0,
+          name: "GRKresponse",
+          state: "enable",
+          other: message.channel.id,
+        };
+        db_int.insert(doc, (error, newdoc) => {
+          if (error !== null) {
+            logger.error(error);
+            sendErr(error.name, new_VCOnlyCh, error.message);
+            logERR(error.name, error.message);
+          }
+        });
+      } else if (docs.state == "disable") {
         return;
       } else {
-        db_grk.count({ type: "語録" }, (e, count) => {
+        db_grk.count({ type: "語録" }, (error, count) => {
+          if (error !== null) {
+            logger.error(error);
+            logERR(error.name, error.message);
+            sendErr(error.name, message.channel.id, error.message);
+          }
           if (through == "no") {
             return;
           }
           db_grk
             .find({ type: "語録" })
             .sort({ key: 1 })
-            .exec((error, docs) => {
-              if (error !== null) {
-                logger.error(error);
-                logERR(error.name, error.message);
-                sendErr(error.name, message.channel.id, error.message);
-              }
+            .exec((e, docs) => {
               for (let step = 0; step < count; step++) {
                 if (docs[step].decision == "include") {
                   if (message.content.match(docs[step].target)) {
