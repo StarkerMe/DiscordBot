@@ -186,6 +186,66 @@ client.on("ready", () => {
       }
     });
   });
+  ////////////////内部Schedule////////////////
+  db_scd.count({ type: "内部計画" }, (error, count) => {
+    if (error !== null) {
+      logger.error(error);
+
+      logERR(error.name, error.message);
+    }
+    db_scd.find({ type: "内部計画" }).exec((e, docs) => {
+      for (let step = 0; step < count; step++) {
+        var text = fs
+          .readFileSync("./lib/A_/Other/" + docs[step].text)
+          .toString();
+        text = text.replace(/\r?\n/g, "");
+        var CH = client.channels.cache.get(docs[step].target);
+        eval(
+          "task_" +
+            docs[step]._id +
+            " = cron.schedule('" +
+            docs[step].date +
+            "', () => {" +
+            text +
+            "},{scheduled: false});"
+        );
+        eval("task_" + docs[step]._id + ".start();");
+
+        const dateargs = docs[step].date.split(" ");
+        for (var i = 0; i < 6; i++) {
+          if (dateargs[i] == "*") {
+            dateargs.splice(i, 1, "毎");
+          }
+        }
+        sendMsgSAVE(
+          "Scheduled",
+          MsgLogChannelId,
+          client.channels.cache.get(docs[step].target).guild.name +
+            " : " +
+            client.channels.cache.get(docs[step].target).name +
+            "\n『 " +
+            docs[step].text +
+            " 』\n" +
+            dateargs[4] +
+            "月 " +
+            dateargs[3] +
+            "日 " +
+            dateargs[5] +
+            "曜日 " +
+            dateargs[2] +
+            "時 " +
+            dateargs[1] +
+            "分 " +
+            dateargs[0] +
+            "秒にスケジュールされました\n\n【データ削除：" +
+            docs[step].type +
+            "：" +
+            docs[step]._id +
+            "】で取り消すことができます"
+        );
+      }
+    });
+  });
   /*
   ////////////////更新情報（スケジュール）////////////////
   db_scd.count({ type: "更新" }, (error, count) => {
@@ -250,8 +310,6 @@ client.on("ready", () => {
 ////////////////Message////////////////
 client.on("message", async (message) => {
   ////////////////Test////////////////
-  if (message.content === "/test") {
-  }
 
   ////////////////EMS////////////////
   if (message.content === "/ems") {
@@ -1059,6 +1117,113 @@ client.on("message", async (message) => {
     return;
   }
 
+  ////////////////内部スケジュール登録////////////////
+  if (message.content.startsWith("/textschedule")) {
+    if (message.content.match("：")) {
+      var splitSpace = "：";
+    } else if (message.content.match(":")) {
+      var splitSpace = ":";
+    } else {
+      return sendMsg(
+        message.channel.id,
+        "/textschedule:〈ChannelID〉:〈(Other/)filename.txt〉:秒 分 時 日 月 曜日:imageURL or localpath\n\nタスクはCronで制御されています。\n日時設定の書式については下記サイトを参考に半角空白含め６桁を設定してください。\nhttps://www.npmjs.com/package/node-cron#cron-syntax"
+      );
+    }
+    const args = message.content.split(splitSpace);
+    const key = "0";
+    const type = "内部計画";
+    const ch = args[1];
+    const path = args[2];
+    const date = args[3];
+    const img = args[4];
+    const dateargs = date.split(" ");
+    const doc = {
+      key: key,
+      type: type,
+      target: ch,
+      text: path,
+      date: date,
+      img: img,
+    };
+
+    db_scd.insert(doc, (error, newDoc) => {
+      if (error !== null) {
+        logger.error(error);
+        logERR(error.name, error.message);
+        sendErr(error.name, message.channel.id, error.message);
+      }
+      const Content =
+        "key:" +
+        newDoc.key +
+        "Type:" +
+        newDoc.type +
+        " ch:" +
+        newDoc.target +
+        " path:" +
+        newDoc.text +
+        " date:" +
+        newDoc.date +
+        " img:" +
+        newDoc.img +
+        " Id:" +
+        newDoc._id;
+      logWARN(
+        "[INSERTDB]",
+        message.guild.name,
+        message.channel.name,
+        message.channel.id,
+        message.member.user.username,
+        Content
+      );
+      for (var i = 0; i < 6; i++) {
+        if (dateargs[i] == "*") {
+          dateargs.splice(i, 1, "毎");
+        }
+      }
+      var text = fs.readFileSync("./lib/A_/Other/" + newDoc.text).toString();
+      text = text.replace(/\r?\n/g, "");
+      const CH = client.channels.cache.get(newDoc.target);
+      eval(
+        "task_" +
+          newDoc._id +
+          " = cron.schedule('" +
+          newDoc.date +
+          "', () => {" +
+          text +
+          "},{scheduled: false});"
+      );
+      eval("task_" + newDoc._id + ".start();");
+
+      sendMsgSAVE(
+        "Scheduled",
+        message.channel.id,
+        client.channels.cache.get(newDoc.target).guild.name +
+          " : " +
+          client.channels.cache.get(newDoc.target).name +
+          "\n『 " +
+          newDoc.text +
+          " 』\n" +
+          dateargs[4] +
+          "月 " +
+          dateargs[3] +
+          "日 " +
+          dateargs[5] +
+          "曜日 " +
+          dateargs[2] +
+          "時 " +
+          dateargs[1] +
+          "分 " +
+          dateargs[0] +
+          "秒にスケジュールされました\n\n【データ削除：" +
+          type +
+          "：" +
+          newDoc._id +
+          "】で取り消すことができます"
+      );
+    });
+    return;
+  }
+
   ////////////////設定データ登録////////////////
   if (message.content.startsWith("/intdb")) {
     if (message.content.match("：")) {
@@ -1823,7 +1988,7 @@ client.on("message", async (message) => {
       var dbtype = db_vic;
     } else if (type == "語録" || type == "特殊") {
       var dbtype = db_grk;
-    } else if (type == "計画") {
+    } else if (type == "計画" || type == "内部計画") {
       var dbtype = db_scd;
     } else {
       return sendMsg(
@@ -1875,7 +2040,7 @@ client.on("message", async (message) => {
           Content
         );
 
-        if (type == "計画") {
+        if (type == "計画" || type == "内部計画") {
           eval("task_" + docs[0]._id + ".stop();");
           sendMsg(message.channel.id, "スケジュールタスクが停止されました");
         }
@@ -2189,6 +2354,11 @@ client.on("message", async (message) => {
           {
             name: "Send Update",
             value: "/update:field:text:text:field:text:text",
+          },
+          {
+            name: "Schedule Message TEXT",
+            value:
+              "/textschedule:〈ChannelID〉:〈(Other/)filename.txt〉:秒 分 時 日 月 曜日(毎=* Sun=0):imageURL or localpath",
           },
           {
             name: "Upload to Server local",
