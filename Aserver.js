@@ -24,7 +24,6 @@ const GenLogChannelId = process.env.GENLOG;
 const MsgLogChannelId = process.env.MSGLOG;
 const rootChannelId = process.env.SUPERUSER;
 const DSKLChannelId = process.env.DSKL;
-const BSVLChannelId = process.env.BSVL;
 
 ////////////////Directory////////////////
 const db_dir = "./db/";
@@ -52,7 +51,7 @@ log4js.configure({
   },
 });
 
-////////////////CreateServer////////////////
+////////////////Create_Server////////////////
 http
   .createServer(function (req, res) {
     res.writeHead(200, { "Content-Type": "text/plain" });
@@ -98,7 +97,7 @@ client.on("ready", () => {
     });
   }, 10000);
 
-  ////////////////LoadDatabese////////////////
+  ////////////////Load_Databese////////////////
   db_grk.loadDatabase((error) => {
     if (error !== null) {
       logger.error(error);
@@ -128,11 +127,10 @@ client.on("ready", () => {
     logger.debug("[LOADDB-I] - Loaded INT.DB");
   });
 
-  ////////////////Schedule////////////////
+  ////////////////Load_計画////////////////
   db_scd.count({ type: "計画" }, (error, count) => {
     if (error !== null) {
       logger.error(error);
-
       logERR(error.name, error.message);
     }
     db_scd.find({ type: "計画" }).exec((e, docs) => {
@@ -186,18 +184,16 @@ client.on("ready", () => {
       }
     });
   });
-  ////////////////内部Schedule////////////////
+
+  ////////////////Load_内部計画////////////////
   db_scd.count({ type: "内部計画" }, (error, count) => {
     if (error !== null) {
       logger.error(error);
-
       logERR(error.name, error.message);
     }
     db_scd.find({ type: "内部計画" }).exec((e, docs) => {
       for (let step = 0; step < count; step++) {
-        var text = fs
-          .readFileSync("./lib/A_/Other/" + docs[step].text)
-          .toString();
+        var text = fs.readFileSync(other_dir + docs[step].text).toString();
         text = text.replace(/\r?\n/g, "");
         var CH = client.channels.cache.get(docs[step].target);
         eval(
@@ -210,7 +206,6 @@ client.on("ready", () => {
             "},{scheduled: false});"
         );
         eval("task_" + docs[step]._id + ".start();");
-
         const dateargs = docs[step].date.split(" ");
         for (var i = 0; i < 6; i++) {
           if (dateargs[i] == "*") {
@@ -246,71 +241,10 @@ client.on("ready", () => {
       }
     });
   });
-  /*
-  ////////////////更新情報（スケジュール）////////////////
-  db_scd.count({ type: "更新" }, (error, count) => {
-    if (error !== null) {
-      logger.error(error);
-      logERR(error.name, error.message);
-    }
-    db_scd.find({ type: "更新" }).exec((e, docs) => {
-      for (let step = 0; step < count; step++) {
-        eval(
-          "task_" +
-            docs[step]._id +
-            " = cron.schedule('" +
-            docs[step].date +
-            "', () => { sendMsgSCDDD('SCHEDULED TASK', '" +
-            docs[step].text +
-            "', '" +
-            docs[step].img +
-            "');},{scheduled: false});"
-        );
-        eval("task_" + docs[step]._id + ".start();");
-        const dateargs = docs[step].date.split(" ");
-        for (var i = 0; i < 6; i++) {
-          if (dateargs[i] == "*") {
-            dateargs.splice(i, 1, "毎");
-          }
-        }
-        sendMsgSAVE(
-          "Scheduled",
-          MsgLogChannelId,
-          docs[step].target +
-            " : " +
-            docs[step].target +
-            "\n『 " +
-            docs[step].text +
-            " : " +
-            docs[step].img +
-            " 』\n" +
-            dateargs[4] +
-            "月 " +
-            dateargs[3] +
-            "日 " +
-            dateargs[5] +
-            "曜日 " +
-            dateargs[2] +
-            "時 " +
-            dateargs[1] +
-            "分 " +
-            dateargs[0] +
-            "秒にスケジュールされました\n\n【データ削除：" +
-            docs[step].type +
-            "：" +
-            docs[step]._id +
-            "】で取り消すことができます"
-        );
-      }
-    });
-  });
-  */
 });
 
 ////////////////Message////////////////
 client.on("message", async (message) => {
-  ////////////////Test////////////////
-
   ////////////////EMS////////////////
   if (message.content === "/ems") {
     sendMsgSAVE(
@@ -324,7 +258,7 @@ client.on("message", async (message) => {
     });
   }
 
-  ////////////////シャットダウン////////////////
+  ////////////////Shutdown////////////////
   if (message.content === "/shutdown") {
     sendMsgSAVE(
       "DESTROY",
@@ -364,7 +298,7 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////再起動////////////////
+  ////////////////ReStart////////////////
   if (message.content === "/restart") {
     sendMsgSAVE(
       "DESTROY",
@@ -405,7 +339,7 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////システムログ////////////////
+  ////////////////System_Log////////////////
   if (
     message.channel.name === "msg-log" ||
     message.channel.name === "gen-log"
@@ -491,8 +425,9 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////ボット判定////////////////
+  ////////////////BotMessage排除////////////////
   if (message.author.bot) {
+    return;
   }
 
   ////////////////保護////////////////
@@ -507,7 +442,7 @@ client.on("message", async (message) => {
     );
   }
 
-  ////////////////メッセージ削除////////////////
+  ////////////////Message_Delete////////////////
   if (message.content.startsWith("/msgdel")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -575,7 +510,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////メッセージ送信////////////////
+  ////////////////Message_Send////////////////
   if (message.content.startsWith("/msgsend")) {
     const files = message.attachments.map((attachment) => attachment.url);
     if (message.content.match("：")) {
@@ -599,7 +534,7 @@ client.on("message", async (message) => {
     return sendMsgSPE(ChannelId, MsgCon, { files });
   }
 
-  ////////////////更新情報////////////////
+  ////////////////Update////////////////
   if (message.content.startsWith("/update")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -618,7 +553,6 @@ client.on("message", async (message) => {
         args[step] = "";
       }
     }
-
     sendMsgSPE(message.channel.id, "🏳 -更新情報を受信しました-", {
       embed: {
         title: args[1],
@@ -685,7 +619,6 @@ client.on("message", async (message) => {
         "The password you typed is incorrect. Start all over again."
       );
     }
-
     client.guilds.cache.map((channel) => {
       sendMsgSPE(
         channel.channels.guild.channels.cache.find(
@@ -717,134 +650,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////更新情報（スケジュール）////////////////
-  /*
-  if (message.content.startsWith("/updatescd")) {
-    if (message.content.match("：")) {
-      var splitSpace = "：";
-    } else if (message.content.match(":")) {
-      var splitSpace = ":";
-    } else {
-      return sendMsg(
-        message.channel.id,
-        "/updatescd:title:n1:v1:v2:n2:v3:v4:秒 分 時 日 月 曜日:imageURL or localpath\n\nタスクはCronで制御されています。\n日時設定の書式については下記サイトを参考に半角空白含め６桁を設定してください。\nhttps://www.npmjs.com/package/node-cron#cron-syntax"
-      );
-    }
-    const args = message.content.split(splitSpace);
-    const key = "0";
-    const type = "更新";
-    const title = args[1];
-    const n1 = args[2];
-    const v1 = args[3];
-    const v2 = args[4];
-    const n2 = args[5];
-    const v3 = args[6];
-    const v4 = args[7];
-    const date = args[8];
-    const img = args[9];
-    var msgcon =
-      title +
-      "','" +
-      n1 +
-      "','" +
-      v1 +
-      "','" +
-      v2 +
-      "','" +
-      n2 +
-      "','" +
-      v3 +
-      "','" +
-      v4;
-    const dateargs = date.split(" ");
-    const doc = {
-      key: key,
-      type: type,
-      target: "ALL",
-      text: msgcon,
-      date: date,
-      img: img,
-    };
-
-    db_scd.insert(doc, (error, newDoc) => {
-      if (error !== null) {
-        logger.error(error);
-        logERR(error.name, error.message);
-        sendErr(error.name, message.channel.id, error.message);
-      }
-      const Content =
-        "key:" +
-        newDoc.key +
-        "Type:" +
-        newDoc.type +
-        " ch:" +
-        newDoc.target +
-        " msg:" +
-        newDoc.text +
-        " date:" +
-        newDoc.date +
-        " img:" +
-        newDoc.img +
-        " Id:" +
-        newDoc._id;
-      logWARN(
-        "[INSERTDB]",
-        message.guild.name,
-        message.channel.name,
-        message.channel.id,
-        message.member.user.username,
-        Content
-      );
-      for (var i = 0; i < 6; i++) {
-        if (dateargs[i] == "*") {
-          dateargs.splice(i, 1, "毎");
-        }
-      }
-      eval(
-        "task_" +
-          newDoc._id +
-          " = cron.schedule('" +
-          newDoc.date +
-          "', () => { sendMsgSCDDD('SCHEDULED TASK', '" +
-          newDoc.text +
-          "', '" +
-          newDoc.img +
-          "');},{scheduled: false});"
-      );
-      eval("task_" + newDoc._id + ".start();");
-
-      sendMsgSAVE(
-        "Scheduled",
-        message.channel.id,
-        client.channels.cache.get(newDoc.target).guild.name +
-          " : " +
-          client.channels.cache.get(newDoc.target).name +
-          "\n『 " +
-          newDoc.text +
-          " 』\n" +
-          dateargs[4] +
-          "月 " +
-          dateargs[3] +
-          "日 " +
-          dateargs[5] +
-          "曜日 " +
-          dateargs[2] +
-          "時 " +
-          dateargs[1] +
-          "分 " +
-          dateargs[0] +
-          "秒にスケジュールされました\n\n【データ削除：" +
-          type +
-          "：" +
-          newDoc._id +
-          "】で取り消すことができます"
-      );
-    });
-    return;
-  }
-*/
-
-  ////////////////ボイス停止////////////////
+  ////////////////Voice_Stop////////////////
   if (message.content === "/stop") {
     const vchannel = message.member.voice.channel;
     if (!vchannel)
@@ -882,7 +688,8 @@ client.on("message", async (message) => {
     }, 120000);
     return;
   }
-  ////////////////leave////////////////
+
+  ////////////////Leave////////////////
   if (message.content === "/leave") {
     const vchannel = message.guild.me.voice.channel;
     vchannel.leave();
@@ -907,7 +714,8 @@ client.on("message", async (message) => {
     }, 120000);
     return;
   }
-  ////////////////アイコン設定////////////////
+
+  ////////////////Set_Icon////////////////
   if (message.content.startsWith("/seticon")) {
     const file = message.attachments.first();
     if (!file)
@@ -966,7 +774,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////アップロード////////////////
+  ////////////////Upload////////////////
   if (message.content.startsWith("/upload")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1009,7 +817,7 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////スケジュール登録////////////////
+  ////////////////Register_Schedule////////////////
   if (message.content.startsWith("/schedule")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1037,7 +845,6 @@ client.on("message", async (message) => {
       date: date,
       img: img,
     };
-
     db_scd.insert(doc, (error, newDoc) => {
       if (error !== null) {
         logger.error(error);
@@ -1047,7 +854,7 @@ client.on("message", async (message) => {
       const Content =
         "key:" +
         newDoc.key +
-        "Type:" +
+        " Type:" +
         newDoc.type +
         " ch:" +
         newDoc.target +
@@ -1086,7 +893,6 @@ client.on("message", async (message) => {
           "');},{scheduled: false});"
       );
       eval("task_" + newDoc._id + ".start();");
-
       sendMsgSAVE(
         "Scheduled",
         message.channel.id,
@@ -1117,7 +923,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////内部スケジュール登録////////////////
+  ////////////////Register_TextSchedule////////////////
   if (message.content.startsWith("/textschedule")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1145,7 +951,6 @@ client.on("message", async (message) => {
       date: date,
       img: img,
     };
-
     db_scd.insert(doc, (error, newDoc) => {
       if (error !== null) {
         logger.error(error);
@@ -1155,7 +960,7 @@ client.on("message", async (message) => {
       const Content =
         "key:" +
         newDoc.key +
-        "Type:" +
+        " Type:" +
         newDoc.type +
         " ch:" +
         newDoc.target +
@@ -1193,7 +998,6 @@ client.on("message", async (message) => {
           "},{scheduled: false});"
       );
       eval("task_" + newDoc._id + ".start();");
-
       sendMsgSAVE(
         "Scheduled",
         message.channel.id,
@@ -1224,7 +1028,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////設定データ登録////////////////
+  ////////////////Register_設定DB////////////////
   if (message.content.startsWith("/intdb")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1286,7 +1090,6 @@ client.on("message", async (message) => {
         "/grkenable : 語録反応を有効化\n /grkdisable : 語録反応を無効化"
       );
     }
-
     db_int.update(
       { name: "GRKresponse", other: message.channel.id },
       {
@@ -1318,7 +1121,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////ウェブフック作成////////////////
+  ////////////////Create_Webhook////////////////
   if (message.content.startsWith("/createwh")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1377,7 +1180,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////データベース出力////////////////
+  ////////////////Export_Database////////////////
   if (message.content === "/epdb") {
     const filename = "export.db";
     db_grk
@@ -1407,7 +1210,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////チャンネルID////////////////
+  ////////////////Ch_Map////////////////
   if (message.content === "/chmap") {
     sendMsg(
       message.channel.id,
@@ -1448,7 +1251,7 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////拒否設定////////////////
+  ////////////////Reject////////////////
   if (message.content.startsWith("/reject")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1458,9 +1261,8 @@ client.on("message", async (message) => {
       return sendMsg(message.channel.id, "/reject:〈ChannelID〉:〈UserID〉");
     }
     const args = message.content.split(splitSpace);
-    const target = args[1]; //ch
-    const text = args[2]; //user
-
+    const ch = args[1];
+    const user = args[2];
     sendMsg(
       message.channel.id,
       "権限を変更するには管理コードを続けて入力してください。"
@@ -1475,25 +1277,25 @@ client.on("message", async (message) => {
     if (response.content === process.env.PASSWORD) {
       message.delete();
       response.delete();
-      await client.users.fetch(text).then((res) =>
+      await client.users.fetch(user).then((res) =>
         client.channels.cache
-          .get(target)
+          .get(ch)
           .updateOverwrite(res, {
             VIEW_CHANNEL: false,
           })
           .then(
             logWARN(
               "[REJECTCH]",
-              client.channels.cache.get(target).guild.name,
-              client.channels.cache.get(target).name,
-              target,
+              client.channels.cache.get(ch).guild.name,
+              client.channels.cache.get(ch).name,
+              ch,
               message.member.user.username,
               "=>" + res.username
             ),
             sendMsg(
               message.channel.id,
               "[REJECT]  " +
-                client.channels.cache.get(target).name +
+                client.channels.cache.get(ch).name +
                 "=>" +
                 res.username
             )
@@ -1514,7 +1316,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////許可設定////////////////
+  ////////////////Permit////////////////
   if (message.content.startsWith("/permit")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1577,7 +1379,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////トピック設定////////////////
+  ////////////////Set_Topic////////////////
   if (message.content.startsWith("/settopic")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1612,7 +1414,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////データ登録////////////////
+  ////////////////Register_DB////////////////
   if (message.content.startsWith("データ登録")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1624,7 +1426,6 @@ client.on("message", async (message) => {
         "データ登録：語録：〈取得単語〉：〈送信文〉：〈Blank or 「完全一致」〉\nデータ登録：ボイス：〈取得単語〉\nデータ登録：特殊：〈取得単語〉：〈リアクション〉\nデータ登録：挨拶：〈UserID〉"
       );
     }
-
     const args = message.content.split(splitSpace);
     const type = args[1];
     const target = args[2];
@@ -1635,7 +1436,6 @@ client.on("message", async (message) => {
       var decision = "match";
     }
     const file = message.attachments.first();
-
     if (type == "ボイス" || type == "挨拶") {
       var dbtype = db_vic;
       if (!file || !file.name.match(/mp3/)) {
@@ -1657,7 +1457,6 @@ client.on("message", async (message) => {
         type + "データベースが見つかりませんでした"
       );
     }
-
     dbtype.find({ target: target }, (error, docs) => {
       if (error !== null) {
         logger.error(error);
@@ -1745,7 +1544,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////データ検索////////////////
+  ////////////////Search_Database////////////////
   if (message.content.startsWith("データ検索")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1781,10 +1580,8 @@ client.on("message", async (message) => {
         type + "データベースが見つかりませんでした"
       );
     }
-
     targetReg = new RegExp(target + "$");
     textReg = new RegExp(text + "$");
-
     if (target && text) {
       dbtype.count(
         { type: type, target: targetReg, text: textReg },
@@ -1936,7 +1733,6 @@ client.on("message", async (message) => {
           targets.push(count + "件見つかりました\n");
           var maxstep = count;
         }
-
         dbtype
           .find({ type: type })
           .sort({ key: 1 })
@@ -1966,7 +1762,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////データ削除////////////////
+  ////////////////Delete_Database////////////////
   if (message.content.startsWith("データ削除")) {
     if (message.content.match("：")) {
       var splitSpace = "：";
@@ -1983,7 +1779,6 @@ client.on("message", async (message) => {
     const id = args[2];
     const query = { _id: id };
     const options = {};
-
     if (type == "ボイス" || type == "挨拶") {
       var dbtype = db_vic;
     } else if (type == "語録" || type == "特殊") {
@@ -1996,7 +1791,6 @@ client.on("message", async (message) => {
         type + "データベースが見つかりませんでした"
       );
     }
-
     dbtype.find(query, (error, docs) => {
       if (error !== null) {
         logger.error(error);
@@ -2039,7 +1833,6 @@ client.on("message", async (message) => {
           message.member.user.username,
           Content
         );
-
         if (type == "計画" || type == "内部計画") {
           eval("task_" + docs[0]._id + ".stop();");
           sendMsg(message.channel.id, "スケジュールタスクが停止されました");
@@ -2049,7 +1842,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////翻訳////////////////
+  ////////////////Trans////////////////
   if (
     message.content.startsWith("翻訳") ||
     message.content.startsWith("trans")
@@ -2093,7 +1886,6 @@ client.on("message", async (message) => {
     if (message.content.startsWith("/play-h")) {
       infohideorshow = "hide";
     }
-
     if (message.content.match("：")) {
       var splitSpace = /(?<=^[^：]+?)：/;
     } else if (message.content.match(":")) {
@@ -2106,7 +1898,6 @@ client.on("message", async (message) => {
     }
     const args = message.content.split(splitSpace);
     const text = args[1];
-
     if (!vchannel)
       return sendMsg(
         message.channel.id,
@@ -2132,7 +1923,6 @@ client.on("message", async (message) => {
           message.member.user.username,
           text
         );
-
         db_int.update(
           { name: "PLAYMUSIC", other: vchannel.id },
           {
@@ -2326,7 +2116,7 @@ client.on("message", async (message) => {
     }
   }
 
-  ////////////////管理者ヘルプ////////////////
+  ////////////////Help_Admin////////////////
   if (message.content === "/help admin") {
     sendMsgSPE(message.channel.id, "🏴 -INFORMATION-", {
       embed: {
@@ -2401,7 +2191,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////一般ヘルプ////////////////
+  ////////////////Help////////////////
   if (message.content === "/help") {
     sendMsgSPE(message.channel.id, "🏴 -INFORMATION-", {
       embed: {
@@ -2458,7 +2248,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////ボイスヘルプ////////////////
+  ////////////////Help_AV////////////////
   if (message.content === "/help AV") {
     db_vic
       .find({ type: "ボイス" })
@@ -2493,7 +2283,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  ////////////////DM転送////////////////
+  ////////////////DM////////////////
   if (message.member == undefined) {
     return sendMsg(
       message.channel.id,
@@ -2501,7 +2291,7 @@ client.on("message", async (message) => {
     );
   }
 
-  ////////////////ボイス////////////////
+  ////////////////Voice////////////////
   var through = "yes";
   db_vic
     .findOne({ type: "ボイス", target: message.content })
@@ -2514,7 +2304,6 @@ client.on("message", async (message) => {
       if (docs) {
         through = "no";
         var vchannel = message.member.voice.channel;
-        //SuperUserChannel => DSKL
         if (message.channel.id == rootChannelId) {
           vchannel = client.channels.cache.get(DSKLChannelId);
         }
@@ -2544,7 +2333,7 @@ client.on("message", async (message) => {
       }
     });
 
-  ////////////////リアクション判定////////////////
+  ////////////////Reaction////////////////
   db_grk.count({ type: "特殊" }, (error, count) => {
     db_grk
       .find({ type: "特殊" })
@@ -2596,7 +2385,7 @@ client.on("message", async (message) => {
       });
   });
 
-  ////////////////語録判定////////////////
+  ////////////////GRK////////////////
   if (message.content.match("http") || message.content.match("@!")) {
     return;
   }
@@ -2659,7 +2448,7 @@ client.on("message", async (message) => {
   );
 });
 
-////////////////ボイスチャンネル////////////////
+////////////////VoiceStateUpdate////////////////
 client.on("voiceStateUpdate", async (oldState, newState) => {
   const new_VCOnlyCh = newState.guild.channels.cache.find(
     (channel) => channel.name === VOnylChannelName
@@ -2668,7 +2457,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     (channel) => channel.name === VOnylChannelName
   );
   const imagesNo = Math.floor(Math.random() * VCimgs.length);
-
   //判定-me
   if (
     newState.member.id === client.user.id ||
@@ -2689,7 +2477,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
       newState.channelID,
       newState.member.user.username
     );
-
     await db_int.findOne(
       { name: "PLAYMUSIC", other: newState.channelID },
       (error, doc) => {
@@ -2715,7 +2502,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
         }
       }
     );
-
     //VC専用チャット存在判定 ->作成
     if (new_VCOnlyCh == undefined) {
       newState.guild.channels
@@ -2836,7 +2622,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
       }
     );
   }
-
   //参加時
   if (oldState.channelID == undefined && newState.channelID != undefined) {
     //一人目判定
@@ -2876,7 +2661,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
                 "さんがVCを開始しました",
               thumbnail: {
                 url: "attachment://image.gif",
-                //url: "https://cdn.glitch.com/" + VCimgs[imagesNo],
               },
               description: "\nURLをクリックしてVCに参加する\n" + invite.url,
               color: "RANDOM",
@@ -2885,7 +2669,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
         );
       });
     }
-
     ////////////////ボイス////////////////
     db_int.findOne(
       { name: "PLAYMUSIC", other: newState.channelID },
@@ -3299,6 +3082,7 @@ function sendMsgIMAGE(
       sendErr(error.name, channelId, error.message);
     });
 }
+
 function sendMsgSCD(
   flag = "SYSTEM",
   channelId,
@@ -3342,69 +3126,7 @@ function sendMsgSCD(
       sendErr(error.name, channelId, error.message);
     });
 }
-function sendMsgSCDDD(
-  flag = "SYSTEM",
-  title = "",
-  name1 = "",
-  value1 = "",
-  value2 = "",
-  name2 = "",
-  value3 = "",
-  value4 = "",
-  imagename = "noimage.png"
-) {
-  if (imagename.match(/http/)) {
-    var ext = path.extname(imagename);
-    var attachment = new discord.MessageAttachment(imagename, "image" + ext);
-  } else {
-    var ext = path.extname(imagename);
-    var attachment = new discord.MessageAttachment(
-      image_dir + imagename,
-      "image" + ext
-    );
-  }
-  const CH = client.guilds.cache.map((channel) => {
-    channel.channels.guild.channels.cache.find(
-      (channel) => channel.type == "text"
-    ).id;
-  });
-  CH.send("🏳 " + title, {
-    files: [attachment],
-    embed: {
-      description: "`❰" + flag + "❱`",
-      title: title,
-      thumbnail: {
-        url: "attachment://image" + ext,
-      },
-      fields: [
-        {
-          name: name1,
-          value: "\n" + value1 + "\n" + value2,
-        },
-        {
-          name: name2,
-          value: "\n" + value3 + "\n" + value4,
-        },
-      ],
-      color: "#2f3136",
-    },
-  })
-    .then(
-      logWARN(
-        "[SENDIMSG]",
-        CH.guild.name,
-        CH.name,
-        channelId,
-        client.user.username,
-        text
-      )
-    )
-    .catch((error) => {
-      logger.error(error);
-      logERR(error.name, error.message);
-      sendErr(error.name, channelId, error.message);
-    });
-}
+
 function sendMsgSPE(channelId, text = "", option = {}) {
   const CH = client.channels.cache.get(channelId);
   CH.send(text, option)
