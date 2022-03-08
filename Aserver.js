@@ -32,15 +32,21 @@ const lib_dir = "./lib/" + ServerNo + "/";
 const image_dir = lib_dir + "Image/";
 const voice_dir = lib_dir + "Voice/";
 const other_dir = lib_dir + "Other/";
-const vcimg_dir = lib_dir + "Image/VCimages/";
+const vcimg_dir = lib_dir + "Image/VC/";
 
 ////////////////Initialization////////////////
 const client = new discord.Client();
 const logger = log4js.getLogger(ServerNo + "Server");
-const VCdirs = fs.readdirSync(vcimg_dir, { withFileTypes: true });
-const VCimgs = VCdirs.filter((dirent) => dirent.isFile()).map(
-  ({ name }) => name
-);
+const VCimgs = fs
+  .readdirSync(vcimg_dir, { withFileTypes: true })
+  .filter((dirent) => dirent.isFile())
+  .map(({ name }) => name)
+  .filter(function (file) {
+    return path
+      .extname(file)
+      .toLowerCase()
+      .match(/jpg|jpeg|png|gif|bmp|tif|tiff|tga/);
+  });
 
 log4js.configure({
   appenders: {
@@ -328,8 +334,7 @@ client.on("message", async (message) => {
         "SYSTEM Restarting"
       );
       message.channel.send("🏳 SYSTEM Restarting...").then((m) => {
-        client.destroy();
-        client.login(process.env.TOKEN);
+        CreateError();
       });
     } else {
       sendMsg(
@@ -783,7 +788,7 @@ client.on("message", async (message) => {
     } else {
       return sendMsg(
         message.channel.id,
-        "/upload:〈(./lib/)Image/ or Voice/〉"
+        "/upload:〈(VC開始宣材画像)Image/VC/xxx.png〉"
       );
     }
     const args = message.content.split(splitSpace);
@@ -792,6 +797,69 @@ client.on("message", async (message) => {
     if (!file) {
       message.delete();
       return sendMsg(message.channel.id, "ファイルと一緒に送信してください");
+    } else if (folder.match(/Image\/VC/)) {
+      const dl = function (url, filename, channelID) {
+        return new Promise((resolve, reject) => {
+          request(
+            { method: "GET", url: url, encoding: null },
+            function (error, response, body) {
+              if (!error && response.statusCode === 200) {
+                try {
+                  fs.writeFileSync(lib_dir + filename, body, "binary");
+                } catch (error) {
+                  logger.error(error);
+                  logERR(error.name, error.message);
+                  sendErr(error.name, channelID, error.message);
+                  reject("Rejected");
+                }
+                sendMsgIMAGE(
+                  "UPLOAD DONE",
+                  channelID,
+                  "ファイルバイナリデータアップロード完了",
+                  lib_dir + filename
+                );
+                resolve("Resolved");
+              } else if (error) {
+                logger.error(error);
+                logERR(error.name, error.message);
+                sendErr(error.name, channelID, error.message);
+                reject("Rejected");
+              }
+            }
+          );
+        });
+      };
+      dl(file.url, folder, message.channel.id)
+        .then((res) => {
+          logWARN(
+            "[UPLOADED]",
+            message.guild.name,
+            message.channel.name,
+            message.channel.id,
+            message.member.user.username,
+            folder
+          );
+          message.delete();
+          logWARN(
+            "[DELE MSG]",
+            message.guild.name,
+            message.channel.name,
+            message.channel.id,
+            message.member.user.username,
+            message.content
+          );
+          setTimeout(function () {
+            sendMsg(
+              message.channel.id,
+              "VC開始宣材画像がアップロードされました。\n適用のため、10秒後にサーバーが自動再起動されます。\n完了は通知されません。"
+            );
+          }, 1000);
+          setTimeout(function () {
+            CreateError();
+          }, 10000);
+        })
+        .catch((error) => {});
+      return;
     } else {
       downloadFile(file.url, folder, message.channel.id);
       logWARN(
@@ -2456,7 +2524,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   const old_VCOnlyCh = oldState.guild.channels.cache.find(
     (channel) => channel.name === VOnylChannelName
   );
-  const imagesNo = Math.floor(Math.random() * VCimgs.length);
+  var imagesNo = Math.floor(Math.random() * VCimgs.length);
   //判定-me
   if (
     newState.member.id === client.user.id ||
@@ -2757,7 +2825,13 @@ function downloadFile(url, filename, channelID) {
     { method: "GET", url: url, encoding: null },
     function (error, response, body) {
       if (!error && response.statusCode === 200) {
-        fs.writeFileSync(lib_dir + filename, body, "binary");
+        try {
+          fs.writeFileSync(lib_dir + filename, body, "binary");
+        } catch (error) {
+          logger.error(error);
+          logERR(error.name, error.message);
+          sendErr(error.name, channelID, error.message);
+        }
         sendMsgIMAGE(
           "UPLOAD DONE",
           channelID,
@@ -2771,6 +2845,11 @@ function downloadFile(url, filename, channelID) {
       }
     }
   );
+  return;
+}
+
+function CreateError() {
+  fs.readFileSync("ERROR.ERROR");
   return;
 }
 
